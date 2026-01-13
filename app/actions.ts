@@ -20,6 +20,41 @@ export async function saveThought(content: string) {
   return data
 }
 
+export async function verifyApiKey(apiKey: string): Promise<{ valid: boolean; message?: string }> {
+  try {
+    if (!apiKey || !apiKey.trim()) {
+      return { valid: false, message: 'API key is required' }
+    }
+
+    const openai = new OpenAI({
+      apiKey: apiKey.trim(),
+    })
+
+    // Make a minimal API call to verify the key (very lightweight - 1 token max)
+    await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: 'test' }],
+      max_tokens: 1,
+    })
+
+    return { valid: true }
+  } catch (error) {
+    console.error('API key verification error:', error)
+    
+    if (error instanceof Error) {
+      if (error.message.includes('invalid_api_key') || error.message.includes('Incorrect API key')) {
+        return { valid: false, message: 'Invalid API key. Please check your key and try again.' }
+      }
+      if (error.message.includes('insufficient_quota') || error.message.includes('billing')) {
+        return { valid: false, message: 'API key has insufficient quota. Please check your OpenAI account billing.' }
+      }
+      return { valid: false, message: `Verification failed: ${error.message}` }
+    }
+    
+    return { valid: false, message: 'Failed to verify API key. Please try again.' }
+  }
+}
+
 export async function generateEncouragement(thought: string, apiKey?: string | null): Promise<string> {
   try {
     // Use user-provided API key if available, otherwise fall back to environment variable

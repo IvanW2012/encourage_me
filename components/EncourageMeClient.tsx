@@ -27,6 +27,7 @@ export default function EncourageMeClient({ initialThoughts }: EncourageMeClient
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
   const [apiKey, setApiKey] = useState<string | null>(null)
+  const [isApiKeyVerified, setIsApiKeyVerified] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const handleApiKeyChange = (key: string | null) => {
@@ -37,10 +38,18 @@ export default function EncourageMeClient({ initialThoughts }: EncourageMeClient
     }
   }
 
+  const handleVerificationChange = (isVerified: boolean) => {
+    setIsApiKeyVerified(isVerified)
+    // Clear error when verification status changes
+    if (error && isVerified) {
+      setError(null)
+    }
+  }
+
   const handleSubmit = async (thought: string) => {
-    // Check if API key is provided
-    if (!apiKey) {
-      setError('Please enter your OpenAI API key above before submitting a thought.')
+    // Check if API key is verified
+    if (!isApiKeyVerified || !apiKey) {
+      setError('Please verify your OpenAI API key above before submitting a thought.')
       return
     }
 
@@ -108,13 +117,20 @@ export default function EncourageMeClient({ initialThoughts }: EncourageMeClient
 
   return (
     <>
-      <ApiKeyInput onApiKeyChange={handleApiKeyChange} />
+      <ApiKeyInput 
+        onApiKeyChange={handleApiKeyChange} 
+        onVerificationChange={handleVerificationChange}
+      />
       {error && (
         <div className="mb-4 rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
           {error}
         </div>
       )}
-      <ThoughtForm onSubmit={handleSubmit} isLoading={isPending} />
+      <ThoughtForm 
+        onSubmit={handleSubmit} 
+        isLoading={isPending} 
+        disabled={!isApiKeyVerified}
+      />
       <ThoughtList 
         thoughts={thoughts} 
         onDelete={handleDelete}
