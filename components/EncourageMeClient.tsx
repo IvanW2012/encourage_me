@@ -6,6 +6,7 @@ import { saveThought, generateEncouragement, updateThoughtEncouragement, deleteT
 import ThoughtForm from './ThoughtForm'
 import ThoughtList from './ThoughtList'
 import EncouragementModal from './EncouragementModal'
+import ApiKeyInput from './ApiKeyInput'
 
 interface Thought {
   id: string
@@ -25,15 +26,33 @@ export default function EncourageMeClient({ initialThoughts }: EncourageMeClient
   const [modalEncouragement, setModalEncouragement] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
+  const [apiKey, setApiKey] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleApiKeyChange = (key: string | null) => {
+    setApiKey(key)
+    // Clear error when API key changes
+    if (error) {
+      setError(null)
+    }
+  }
 
   const handleSubmit = async (thought: string) => {
+    // Check if API key is provided
+    if (!apiKey) {
+      setError('Please enter your OpenAI API key above before submitting a thought.')
+      return
+    }
+
+    // Clear any previous errors
+    setError(null)
     startTransition(async () => {
       try {
         // Save the thought
         const savedThought = await saveThought(thought)
 
-        // Generate encouragement
-        const encouragement = await generateEncouragement(thought)
+        // Generate encouragement with user's API key
+        const encouragement = await generateEncouragement(thought, apiKey)
 
         // Update the thought with encouragement
         await updateThoughtEncouragement(savedThought.id, encouragement)
@@ -53,6 +72,8 @@ export default function EncourageMeClient({ initialThoughts }: EncourageMeClient
         router.refresh()
       } catch (error) {
         console.error('Error submitting thought:', error)
+        const errorMessage = error instanceof Error ? error.message : 'An error occurred while generating encouragement.'
+        setError(errorMessage)
         // Still show a generic encouragement even if something fails
         setModalEncouragement('Your thoughts matter. Keep going!')
         setIsModalOpen(true)
@@ -87,6 +108,12 @@ export default function EncourageMeClient({ initialThoughts }: EncourageMeClient
 
   return (
     <>
+      <ApiKeyInput onApiKeyChange={handleApiKeyChange} />
+      {error && (
+        <div className="mb-4 rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
+          {error}
+        </div>
+      )}
       <ThoughtForm onSubmit={handleSubmit} isLoading={isPending} />
       <ThoughtList 
         thoughts={thoughts} 

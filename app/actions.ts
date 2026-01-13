@@ -3,10 +3,6 @@
 import { createClient } from '@/lib/supabase/server'
 import OpenAI from 'openai'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
-
 export async function saveThought(content: string) {
   const supabase = await createClient()
   
@@ -24,8 +20,19 @@ export async function saveThought(content: string) {
   return data
 }
 
-export async function generateEncouragement(thought: string): Promise<string> {
+export async function generateEncouragement(thought: string, apiKey?: string | null): Promise<string> {
   try {
+    // Use user-provided API key if available, otherwise fall back to environment variable
+    const keyToUse = apiKey || process.env.OPENAI_API_KEY
+
+    if (!keyToUse) {
+      throw new Error('OpenAI API key is required. Please enter your API key in the settings above.')
+    }
+
+    const openai = new OpenAI({
+      apiKey: keyToUse,
+    })
+
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [
@@ -46,6 +53,20 @@ export async function generateEncouragement(thought: string): Promise<string> {
     return encouragement.trim()
   } catch (error) {
     console.error('Error generating encouragement:', error)
+    
+    // Provide more specific error messages
+    if (error instanceof Error) {
+      if (error.message.includes('API key')) {
+        throw error
+      }
+      if (error.message.includes('insufficient_quota') || error.message.includes('billing')) {
+        throw new Error('Your OpenAI API key has insufficient quota. Please check your OpenAI account billing.')
+      }
+      if (error.message.includes('invalid_api_key')) {
+        throw new Error('Invalid OpenAI API key. Please check your API key and try again.')
+      }
+    }
+    
     return 'Remember, every step forward counts. You\'re doing great!'
   }
 }
